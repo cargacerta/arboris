@@ -60,9 +60,17 @@ h1,h2,h3,p{margin:0}
 .logo.lg{width:44px;height:44px}
 .brand .bn{display:flex;flex-direction:column;line-height:1.15}
 .brand .bn small{font-size:11px;font-weight:600;opacity:.85}
-.role{display:flex;background:rgba(255,255,255,.16);border-radius:999px;padding:3px}
+.role{display:flex;gap:4px;background:rgba(255,255,255,.16);border-radius:999px;padding:3px}
 .role[hidden]{display:none}
-.role button{border:0;background:none;color:#fff;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer}
+.role button{border:0;background:none;color:#fff;min-height:44px;padding:0 18px;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer;touch-action:manipulation}
+@media (max-width:520px){
+  .hero .top{display:contents}
+  .hero .brand{order:0}
+  .hero>div:not(.top){order:1}
+  .hero .role{order:2;display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .hero .role[hidden]{display:none}
+  .hero .role button{width:100%;padding:0 8px}
+}
 .role button[aria-pressed="true"]{background:#fff;color:#0A3A22}
 .hero h1{font-size:25px;font-weight:800;line-height:1.1;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
 .hero p{margin-top:6px;color:var(--lime);font-weight:700;font-size:14px}
