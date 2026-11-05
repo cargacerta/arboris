@@ -148,13 +148,38 @@ function heading(){
   if(tab==='problemas')return ['Problemas','Relatos dos moradores'];
   return ['Relatório do mês',monthLabel()];
 }
+var usage=null, usageType=null;
+var TZ='America/Bahia';
+function tzParts(){try{var f=new Intl.DateTimeFormat('en-US',{timeZone:TZ,hour:'numeric',hourCycle:'h23',weekday:'short'}).formatToParts(new Date(now()));var o={};f.forEach(function(x){o[x.type]=x.value});return {hour:parseInt(o.hour,10)%24,weekend:o.weekday==='Sat'||o.weekday==='Sun'}}catch(e){var d=new Date(now());return {hour:d.getHours(),weekend:d.getDay()===0||d.getDay()===6}}}
+async function loadUsage(){try{var d=await rpc('usage_by_hour',{p_days:30});if(d&&Array.isArray(d.weekday)&&Array.isArray(d.weekend)){usage=d;if(board&&!$('#modal:not([hidden])'))render()}}catch(e){}}
+function usageCard(){
+  if(!usage)return '';
+  var head='<section class="card"><h3 style="font-size:16px;font-weight:800">Horários mais movimentados</h3>';
+  var n=Number(usage.sessions)||0;
+  if(n<10)return head+'<p class="note">O gráfico aparece conforme o uso: faltam '+(10-n)+(10-n===1?' carga.':' cargas.')+'</p></section>';
+  var t=tzParts(),type=usageType||(t.weekend?'weekend':'weekday');
+  var h=(usage[type]||[]).slice(0,24).map(function(v){return Math.max(0,Number(v)||0)});while(h.length<24)h.push(0);
+  var max=Math.max.apply(null,h.concat([10]));
+  var bs=0,bw=-1;for(var i=0;i<=21;i++){var w=h[i]+h[i+1]+h[i+2];if(w>bw){bw=w;bs=i}}
+  var ls=6,lw=Infinity;for(var j=6;j<=20;j++){var w2=h[j]+h[j+1]+h[j+2];if(w2<lw){lw=w2;ls=j}}
+  var isToday=type===(t.weekend?'weekend':'weekday');
+  var bars=h.map(function(v,i){var ht=Math.round(v/max*96),cls='hb'+(isToday&&i===t.hour?' now':(bw>0&&i>=bs&&i<bs+3?' busy':''));
+    return '<rect class="'+cls+'" x="'+(i*15+2)+'" y="'+(112-ht)+'" width="11" height="'+Math.max(ht,1)+'" rx="2"><title>'+i+'h: '+Math.round(v)+'%</title></rect>'+(i%3===0?'<text x="'+(i*15+7.5)+'" y="128" text-anchor="middle">'+i+'h</text>':'')}).join('');
+  var todayArr=usage[t.weekend?'weekend':'weekday']||[],cur=Math.max(0,Number(todayArr[t.hour])||0);
+  var lvl=cur<=33?'baixo':cur<=66?'médio':'alto';
+  var chip=function(id,l){return '<button class="chip" data-act="usageType" data-id="'+id+'" aria-pressed="'+(type===id)+'">'+l+'</button>'};
+  return head+'<div class="chips uchips">'+chip('weekday','Dias úteis')+chip('weekend','Fim de semana')+'</div>'
+   +'<svg class="chart uchart" viewBox="0 0 360 134" role="img" aria-label="Ocupação média dos pontos por hora, '+(type==='weekend'?'fim de semana':'dias úteis')+'">'+bars+'</svg>'
+   +'<p class="usum">Agora: movimento '+lvl+'. Costuma estar mais livre entre '+ls+'h e '+(ls+3)+'h.</p>'
+   +'<p class="note">Ocupação média dos pontos por hora nos últimos '+(usage.days||30)+' dias.'+(isToday?' Em verde, a hora atual.':'')+(bw>0?' Em amarelo, as 3 horas mais cheias.':'')+'</p></section>';
+}
 var views={morador:{},sindico:{}};
 views.morador.pontos=function(){
   var join='';
   if(!mySession()&&!inQueue()&&freeFor().length===0&&anyOn())join='<button class="btn primary full" data-act="join">Entrar na fila</button>';
   if(!anyOn()&&!mySession())join='<p class="note" style="text-align:center">Todos os pontos estão fora de serviço no momento.</p>';
   if(inQueue())join='<p class="note" style="text-align:center">Você está na fila. Veja sua posição na aba Fila.</p>';
-  return '<div class="stack">'+noticeBanner()+bannerHTML()+P().map(function(p){return pointCard(p,false)}).join('')+join+pushCard()+'</div>';
+  return '<div class="stack">'+noticeBanner()+bannerHTML()+P().map(function(p){return pointCard(p,false)}).join('')+join+pushCard()+usageCard()+'</div>';
 };
 views.morador.fila=function(){
   var btn='';
@@ -170,7 +195,7 @@ views.morador.problema=function(){
 views.sindico.painel=function(){
   return '<div class="stack">'+openBanner()+(board.notice?'<div class="banner warn"><b>Aviso ativo para os moradores</b><span>'+esc(board.notice.text)+'</span><button class="lnk" data-act="noticeEnd">Encerrar aviso</button></div>':'')
    +'<div class="row"><button class="btn sm primary" data-act="noticeOpen">Enviar aviso</button><button class="btn sm danger" data-act="offOpen" data-id="0">Bloquear pontos</button></div>'
-   +P().map(function(p){return pointCard(p,true)}).join('')+'</div>'
+   +P().map(function(p){return pointCard(p,true)}).join('')+usageCard()+'</div>'
    +'<h2 class="sh">Fila ('+board.queue.length+')</h2><section class="list">'+queueList(true)+'</section>'
    +'<h2 class="sh">Avisos enviados</h2><section class="list">'+(notifs.length?notifs.map(function(a){return '<div class="item"><div class="l"><span>'+(a.profiles?esc(a.profiles.name.split(' ')[0]):'Todos os moradores')+': '+esc(a.body)+'</span><span class="note mono">'+fmtT(ts(a.created_at))+'</span></div><span class="tag">Push</span></div>'}).join(''):'<p class="note" style="padding:14px 0">Os avisos enviados aparecem aqui.</p>')+'</section>'
    +qrSection();
@@ -304,7 +329,7 @@ async function boot(force){
     if(me.status!=='approved'){showWaiting();return}
     role=me.role==='sindico'?'sindico':'morador';tab=role==='sindico'?'painel':'pontos';
     showOnly('app');await refresh();
-    if(!started){started=true;subscribe();checkPush();route()}
+    if(!started){started=true;subscribe();checkPush();route();loadUsage()}
   }catch(e){toast(errMsg(e))}finally{booting=false}
 }
 async function lookupPlate(){
@@ -446,6 +471,7 @@ var A={
     catch(e){$('#err').textContent=errMsg(e)}
   },
   reactivate:function(id){call('reactivate_point',{p_point:parseInt(id,10)},'Ponto reativado.')},
+  usageType:function(id){if(id==='weekday'||id==='weekend'){usageType=id;render()}},
   noticeOpen:function(){openNotice()},
   presetN:function(id){$('#nt').value=id},
   confirmNotice:async function(){
@@ -504,6 +530,7 @@ document.addEventListener('input',function(e){
 /* ---------- início ---------- */
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
 sb.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT'){showLogin()}});
+setInterval(function(){if(started)loadUsage()},600000);
 setInterval(function(){updateLive();if(board&&Date.now()-lastRefresh>15000&&!document.hidden)refresh()},1000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&board)refresh()});
 boot();
