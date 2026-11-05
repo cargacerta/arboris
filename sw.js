@@ -1,5 +1,5 @@
 // Service worker: avisos push + cache mínimo do esqueleto do app.
-var CACHE = 'carga-certa-v2';
+var CACHE = 'carga-certa-v3';
 var SHELL = ['./', 'index.html', 'app.js', 'config.js', 'vendor/supabase.js', 'vendor/qrcode.js', 'manifest.webmanifest', 'icons/condo-logo.png'];
 
 self.addEventListener('install', function (e) {
@@ -31,6 +31,7 @@ self.addEventListener('push', function (e) {
     badge: 'icons/icon-192.png',
     tag: d.tag || 'carga-certa',
     renotify: true,
+    vibrate: [200, 100, 200],
     data: { url: d.url || './' }
   }));
 });

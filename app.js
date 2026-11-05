@@ -213,13 +213,15 @@ var tabDefs={
   morador:[['pontos','Pontos','<path d="M13.5 2 5 13.5h5.5L9.5 22 19 9.8h-5.7z"/>'],['fila','Fila','<path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/>'],['problema','Problema','<path d="M1 21h22L12 2zm12-3h-2v-2h2zm0-4h-2v-4h2z"/>']],
   sindico:[['painel','Painel','<path d="M3 3h8v8H3zm10 0h8v5h-8zM3 13h8v8H3zm10-3h8v11h-8z"/>'],['moradores','Moradores','<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/>'],['problemas','Problemas','<path d="M1 21h22L12 2zm12-3h-2v-2h2zm0-4h-2v-4h2z"/>'],['registro','Relatório','<path d="M4 20V10h4v10zm6 0V4h4v16zm6 0v-7h4v7z"/>']]
 };
+function pendingCount(){return residents.filter(function(r){return r.status==='pending'}).length}
 function render(){
   if(!board)return;
+  if(!me||me.role!=='sindico'){if(role==='sindico'){role='morador';tab='pontos'}}
   document.querySelectorAll('.role button').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.id===role))});
   $('.role').hidden=me.role!=='sindico';
   var h=heading();$('#ttl').textContent=h[0];$('#sub').textContent=h[1];
-  $('#view').innerHTML=views[role][tab]()+'<div class="demo"><span>'+esc(user.email||'')+'</span><button data-act="logout">Sair</button></div>';
-  $('#tabs').innerHTML=tabDefs[role].map(function(d){return '<button data-act="tab" data-id="'+d[0]+'"'+(d[0]===tab?' aria-current="page"':'')+'><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'+d[2]+'</svg>'+d[1]+(d[0]==='problemas'&&openCount()?'<span class="badge">'+openCount()+'</span>':'')+'</button>'}).join('');
+  $('#view').innerHTML=views[role][tab]()+'<div class="demo"><span>'+esc((me&&me.name)||'')+'</span><button data-act="logout">Sair</button></div>';
+  $('#tabs').innerHTML=tabDefs[role].map(function(d){return '<button data-act="tab" data-id="'+d[0]+'"'+(d[0]===tab?' aria-current="page"':'')+'><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'+d[2]+'</svg>'+d[1]+(d[0]==='problemas'&&openCount()?'<span class="badge">'+openCount()+'</span>':'')+(d[0]==='moradores'&&pendingCount()?'<span class="badge">'+pendingCount()+'</span>':'')+'</button>'}).join('');
 }
 function updateLive(){
   if(!board)return;
@@ -415,7 +417,7 @@ window.addEventListener('hashchange',route);
 
 /* ---------- ações ---------- */
 var A={
-  role:function(id){role=id;tab=id==='morador'?'pontos':'painel';render();if(id==='sindico')refresh()},
+  role:function(id){if(id==='sindico'&&!(me&&me.role==='sindico'))return;if(id!=='sindico'&&id!=='morador')return;role=id;tab=id==='morador'?'pontos':'painel';render();if(id==='sindico')refresh()},
   tab:function(id){tab=id;if(id==='registro')rpt=null;render();scrollTo(0,0);if(id==='registro')refresh()},
   start:function(id){openStart(parseInt(id,10))},
   preset:function(id,el){$('#hh').value=el.dataset.h;$('#mm').value=el.dataset.m;updEnd()},
